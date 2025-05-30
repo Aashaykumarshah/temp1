@@ -1,140 +1,145 @@
 #!/usr/bin/env python3
-
 import sys
+import math
 
-INF = float('inf')
+INF = math.inf
 
-# Parse all input
 def parse_input():
-    routers = []
-    links = []
-    updates = []
-
-    section = 'routers'
+    nodes = []
+    # Read router names until "START"
     for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        if line == "START":
-            section = 'links'
-            continue
-        elif line == "UPDATE":
-            section = 'updates'
-            continue
-        elif line == "END":
+        tok = line.strip()
+        if not tok: continue
+        if tok == "START":
+            break
+        nodes.append(tok)
+
+    edges = []
+    # Read initial links until "UPDATE"
+    for line in sys.stdin:
+        tok = line.strip()
+        if not tok: continue
+        if tok == "UPDATE":
+            break
+        u, v, w = tok.split()
+        edges.append((u, v, int(w)))
+
+    updates = []
+    # Read updates until "END"
+    for line in sys.stdin:
+        tok = line.strip()
+        if not tok: continue
+        if tok == "END":
+            break
+        u, v, w = tok.split()
+        updates.append((u, v, int(w)))
+
+    return nodes, edges, updates
+
+def run_dv(nodes, edges):
+    # Build adjacency map
+    graph = {n: {} for n in nodes}
+    for u, v, w in edges:
+        graph.setdefault(u, {})[v] = w
+        graph.setdefault(v, {})[u] = w
+
+    # Initialize distance tables: dt[x][dest][via]
+    dt = {}
+    for x in nodes:
+        dt[x] = {}
+        for dest in nodes:
+            if dest == x: continue
+            dt[x][dest] = { via: INF for via in nodes if via != x }
+        # Fill direct‐link costs
+        for nbr, w in graph[x].items():
+            if nbr in dt[x]:
+                dt[x][nbr][nbr] = w
+
+    # Print t=0 tables
+    t = 0
+    print_distance_tables(nodes, dt, t)
+    t += 1
+
+    # Synchronous rounds until convergence
+    while True:
+        # Each router advertises D(src, dest) = min_v dt[src][dest][v], and we define D(src, src)=0
+        adv = {}
+        for src in nodes:
+            adv[src] = {}
+            for dest in nodes:
+                if dest == src:
+                    adv[src][dest] = 0
+                else:
+                    adv[src][dest] = min(dt[src][dest].values())
+
+        updated = False
+        # For each router x and each neighbor src, try to improve via src
+        for x in nodes:
+            for src, cost_x_src in graph[x].items():
+                for dest in dt[x]:
+                    nc = cost_x_src + adv[src][dest]
+                    if nc < dt[x][dest][src]:
+                        dt[x][dest][src] = nc
+                        updated = True
+
+        if not updated:
             break
 
-        if section == 'routers':
-            routers.append(line)
-        elif section == 'links':
-            parts = line.split()
-            if len(parts) == 3:
-                links.append((parts[0], parts[1], int(parts[2])))
-        elif section == 'updates':
-            parts = line.split()
-            if len(parts) == 3:
-                updates.append((parts[0], parts[1], int(parts[2])))
+        print_distance_tables(nodes, dt, t)
+        t += 1
 
-    return routers, links, updates
+    # Print final routing tables
+    print_routing_tables(nodes, dt)
 
-# Initialize data structures
-def initialize_tables(routers, links):
-    distance = {r: {} for r in routers}
-    neighbors = {r: {} for r in routers}
+def print_distance_tables(nodes, dt, t):
+    for x in sorted(nodes):
+        print(f"Distance Table of router {x} at t={t}:")
+        others = [n for n in sorted(nodes) if n != x]
+        # Header
+        print("   " + " ".join(others))
+        # Rows
+        for dest in others:
+            row = [dest]
+            for via in others:
+                c = dt[x][dest][via]
+                row.append(str(int(c)) if c != INF else "INF")
+            print("   " + " ".join(row))
+        print()
 
-    for r in routers:
-        for d in routers:
-            distance[r][d] = INF
-        distance[r][r] = 0
-
-    for src, dst, cost in links:
-        if src not in routers:
-            routers.append(src)
-            distance[src] = {r: INF for r in routers}
-            distance[src][src] = 0
-            neighbors[src] = {}
-        if dst not in routers:
-            routers.append(dst)
-            distance[dst] = {r: INF for r in routers}
-            distance[dst][dst] = 0
-            neighbors[dst] = {}
-
-        if cost != -1:
-            distance[src][dst] = cost
-            distance[dst][src] = cost
-            neighbors[src][dst] = cost
-            neighbors[dst][src] = cost
-        else:
-            distance[src][dst] = INF
-            distance[dst][src] = INF
-            neighbors[src].pop(dst, None)
-            neighbors[dst].pop(src, None)
-
-    return distance, neighbors
-def run_distance_vector(routers, distance, neighbors, max_rounds=10):
-    vectors = {r: distance[r].copy() for r in routers}
-    converged = False
-    round_num = 0
-    stable_rounds = 0  # count how long vectors remain unchanged
-    last_vectors = {}
-
-    while stable_rounds < max_rounds:
-        print_distance_tables(routers, vectors, round_num)
-        round_num += 1
-        updated = False
-        new_vectors = {r: vectors[r].copy() for r in routers}
-
-        for router in routers:
-            for dest in routers:
-                if router == dest:
-                    continue
-                min_cost = vectors[router][dest]
-                for neighbor in neighbors[router]:
-                    cost_to_n = neighbors[router][neighbor]
-                    cost_via_n = cost_to_n + vectors[neighbor][dest]
-                    if cost_via_n < min_cost:
-                        min_cost = cost_via_n
-                if new_vectors[router][dest] != min_cost:
-                    new_vectors[router][dest] = min_cost
-                    updated = True
-
-        if new_vectors == vectors:
-            stable_rounds += 1
-        else:
-            stable_rounds = 0  # reset if changes detected
-
-        vectors = new_vectors
-
-    print_routing_tables(routers, vectors, neighbors)
-
-def print_routing_tables(routers, vectors, neighbors):
-    for router in sorted(routers):
-        print(f"Routing Table of router {router}:")
-        for dest in sorted(routers):
-            if router == dest:
+def print_routing_tables(nodes, dt):
+    for x in sorted(nodes):
+        print(f"Routing Table of router {x}:")
+        for dest in sorted(nodes):
+            if dest == x:
                 continue
-            min_cost = vectors[router][dest]
-            if min_cost == INF:
+            via, cost = min(dt[x][dest].items(), key=lambda kv: kv[1])
+            if cost == INF:
                 print(f"{dest},INF,INF")
             else:
-                next_hop = None
-                for neighbor in sorted(neighbors[router]):
-                    if vectors[router][dest] == neighbors[router][neighbor] + vectors[neighbor][dest]:
-                        next_hop = neighbor
-                        break
-                print(f"{dest},{next_hop},{min_cost}")
+                print(f"{dest},{via},{int(cost)}")
         print()
 
 def main():
-    routers, links, updates = parse_input()
-    distance, neighbors = initialize_tables(routers.copy(), links)
-    run_distance_vector(routers.copy(), distance, neighbors, max_rounds=3)
+    nodes, edges, updates = parse_input()
 
+    # Run on the original topology
+    run_dv(nodes, edges)
+
+    # If there are updates, apply and run again
     if updates:
-        print("\nApplying updates...\n")
-        distance, neighbors = initialize_tables(routers.copy(), links + updates)
-        run_distance_vector(routers.copy(), distance, neighbors, max_rounds=6)
+        for u, v, w in updates:
+            # Remove any existing u–v link
+            edges = [e for e in edges if not ((e[0]==u and e[1]==v) or (e[0]==v and e[1]==u))]
+            # If w >= 0, add/update the link
+            if w >= 0:
+                edges.append((u, v, w))
+            # Include any new nodes
+            if u not in nodes:
+                nodes.append(u)
+            if v not in nodes:
+                nodes.append(v)
 
+        run_dv(nodes, edges)
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
