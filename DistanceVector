@@ -107,21 +107,24 @@ def run_distance_vector(routers, distance, neighbors, max_rounds=10):
 
     print_routing_tables(routers, vectors, neighbors)
 
-def print_distance_tables(routers, vectors, round_num):
+def print_routing_tables(routers, vectors, neighbors):
     for router in sorted(routers):
-        print(f"Distance Table of router {router} at t={round_num}:")
-        destinations = [r for r in sorted(routers) if r != router]
-        header = "     " + "  ".join(destinations)
-        print(header)
-        for via in sorted(routers):
-            if via == router:
+        print(f"Routing Table of router {router}:")
+        for dest in sorted(routers):
+            if router == dest:
                 continue
-            row = [via]
-            for dest in destinations:
-                cost = vectors[router][dest] if dest in vectors[router] else INF
-                row.append("INF" if cost == INF else str(cost))
-            print("    ".join(row))
+            min_cost = vectors[router][dest]
+            if min_cost == INF:
+                print(f"{dest},INF,INF")
+            else:
+                next_hop = None
+                for neighbor in sorted(neighbors[router]):
+                    if vectors[router][dest] == neighbors[router][neighbor] + vectors[neighbor][dest]:
+                        next_hop = neighbor
+                        break
+                print(f"{dest},{next_hop},{min_cost}")
         print()
+
 def main():
     routers, links, updates = parse_input()
     distance, neighbors = initialize_tables(routers.copy(), links)
