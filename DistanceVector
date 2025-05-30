@@ -71,13 +71,14 @@ def initialize_tables(routers, links):
             neighbors[dst].pop(src, None)
 
     return distance, neighbors
-
-def run_distance_vector(routers, distance, neighbors):
+def run_distance_vector(routers, distance, neighbors, max_rounds=10):
     vectors = {r: distance[r].copy() for r in routers}
     converged = False
     round_num = 0
+    stable_rounds = 0  # count how long vectors remain unchanged
+    last_vectors = {}
 
-    while not converged:
+    while stable_rounds < max_rounds:
         print_distance_tables(routers, vectors, round_num)
         round_num += 1
         updated = False
@@ -97,9 +98,12 @@ def run_distance_vector(routers, distance, neighbors):
                     new_vectors[router][dest] = min_cost
                     updated = True
 
+        if new_vectors == vectors:
+            stable_rounds += 1
+        else:
+            stable_rounds = 0  # reset if changes detected
+
         vectors = new_vectors
-        if not updated:
-            converged = True
 
     print_routing_tables(routers, vectors, neighbors)
 
@@ -118,6 +122,16 @@ def print_distance_tables(routers, vectors, round_num):
                 row.append("INF" if cost == INF else str(cost))
             print("    ".join(row))
         print()
+def main():
+    routers, links, updates = parse_input()
+    distance, neighbors = initialize_tables(routers.copy(), links)
+    run_distance_vector(routers.copy(), distance, neighbors, max_rounds=3)
+
+    if updates:
+        print("\nApplying updates...\n")
+        distance, neighbors = initialize_tables(routers.copy(), links + updates)
+        run_distance_vector(routers.copy(), distance, neighbors, max_rounds=6)
+
 
 if __name__ == "__main__":
     main()
