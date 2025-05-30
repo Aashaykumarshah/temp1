@@ -106,24 +106,6 @@ def run_distance_vector(routers, distance, neighbors):
 def print_distance_tables(routers, vectors, round_num):
     for router in sorted(routers):
         print(f"Distance Table of router {router} at t={round_num}:")
-        header = "    " + "  ".join(sorted(routers))
-        print(header)
-        for via in sorted(routers):
-            if via == router:
-                continue
-            row = [via]
-            for dest in sorted(routers):
-                if dest == router:
-                    continue
-                # DV tables are router's view via each neighbor
-                cost = vectors[router][dest]
-                row.append("INF" if cost == INF else str(cost))
-            print("  ".join(row))
-        print()
-
-def print_distance_tables(routers, vectors, round_num):
-    for router in sorted(routers):
-        print(f"Distance Table of router {router} at t={round_num}:")
         destinations = [r for r in sorted(routers) if r != router]
         header = "     " + "  ".join(destinations)
         print(header)
@@ -136,19 +118,6 @@ def print_distance_tables(routers, vectors, round_num):
                 row.append("INF" if cost == INF else str(cost))
             print("    ".join(row))
         print()
-
-def main():
-    routers, links, updates = parse_input()
-
-    # Initial topology
-    distance, neighbors = initialize_tables(routers.copy(), links)
-    run_distance_vector(routers.copy(), distance, neighbors)
-
-    # Updates applied
-    if updates:
-        print("\nApplying updates...\n")
-        distance, neighbors = initialize_tables(routers.copy(), links + updates)
-        run_distance_vector(routers.copy(), distance, neighbors)
 
 if __name__ == "__main__":
     main()
