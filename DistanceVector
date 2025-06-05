@@ -4,31 +4,66 @@ import math
 
 INF = math.inf
 
+def parse_input():
+    nodes = []
+    for line in sys.stdin:
+        tok = line.strip()
+        if not tok: continue
+        if tok == "START":
+            break
+        nodes.append(tok)
+
+    edges = []
+    for line in sys.stdin:
+        tok = line.strip()
+        if not tok: continue
+        if tok == "UPDATE":
+            break
+        u, v, w = tok.split()
+        edges.append((u, v, int(w)))
+
+    updates = []
+    for line in sys.stdin:
+        tok = line.strip()
+        if not tok: continue
+        if tok == "END":
+            break
+        u, v, w = tok.split()
+        updates.append((u, v, int(w)))
+
+    return nodes, edges, updates
+
 def run_dv(nodes, edges, start_time):
     graph = {n: {} for n in nodes}
     for u, v, w in edges:
-        graph[u][v] = w
-        graph[v][u] = w
+        graph.setdefault(u, {})[v] = w
+        graph.setdefault(v, {})[u] = w
 
     dt = {}
     for x in nodes:
         dt[x] = {}
         for dest in nodes:
-            if dest == x:
-                continue
+            if dest == x: continue
             dt[x][dest] = { via: INF for via in nodes if via != x }
         for nbr, w in graph[x].items():
             if nbr in dt[x]:
-                dt[x][nbr][nbr] = w
+                dt[x][nbr][nbr] = w  # Set direct link cost
 
     t = start_time
     print_distance_tables(nodes, dt, t)
     t += 1
 
     while True:
-        adv = {src: {dst: (0 if src == dst else min(dt[src][dst].values())) for dst in nodes} for src in nodes}
-        updated = False
+        adv = {}
+        for src in nodes:
+            adv[src] = {}
+            for dest in nodes:
+                if dest == src:
+                    adv[src][dest] = 0
+                else:
+                    adv[src][dest] = min(dt[src][dest].values())
 
+        updated = False
         for x in nodes:
             for src, cost_x_src in graph[x].items():
                 for dest in dt[x]:
@@ -50,12 +85,13 @@ def print_distance_tables(nodes, dt, t):
     for x in sorted(nodes):
         print(f"Distance Table of router {x} at t={t}:")
         others = [n for n in sorted(nodes) if n != x]
+        print("   " + " ".join(others))
         for dest in others:
-            row = f"{dest}"
+            row = [dest]
             for via in others:
-                cost = dt[x][dest][via]
-                row += f"{str(int(cost)).rjust(5)}" if cost != INF else "  INF"
-            print(row)
+                c = dt[x][dest][via]
+                row.append(str(int(c)) if c != INF else "INF")
+            print("   " + " ".join(row))
         print()
 
 def print_routing_tables(nodes, dt):
@@ -64,59 +100,29 @@ def print_routing_tables(nodes, dt):
         for dest in sorted(nodes):
             if dest == x:
                 continue
-            best_cost = INF
-            best_via = None
-            for via in sorted(dt[x][dest].keys()):
-                cost = dt[x][dest][via]
-                if cost < best_cost:
-                    best_cost = cost
-                    best_via = via
-            if best_cost == INF:
+            via, cost = min(dt[x][dest].items(), key=lambda kv: kv[1])
+            if cost == INF:
                 print(f"{dest},INF,INF")
             else:
-                print(f"{dest},{best_via},{int(best_cost)}")
-        print("")
+                print(f"{dest},{via},{int(cost)}")
+        print()
 
 def main():
-    lines = sys.stdin.read().splitlines()
-    i = 0
-    while i < len(lines):
-        t = 0
-        nodes = []
-        while i < len(lines) and lines[i].strip() != "START":
-            if lines[i].strip():
-                nodes.append(lines[i].strip())
-            i += 1
-        i += 1  # skip START
+    nodes, edges, updates = parse_input()
+    t = 0
+    t = run_dv(nodes, edges, t)
 
-        edges = []
-        while i < len(lines) and lines[i].strip() != "UPDATE":
-            if lines[i].strip():
-                u, v, w = lines[i].strip().split()
-                edges.append((u, v, int(w)))
-            i += 1
-        i += 1  # skip UPDATE
+    if updates:
+        for u, v, w in updates:
+            edges = [e for e in edges if not ((e[0]==u and e[1]==v) or (e[0]==v and e[1]==u))]
+            if w >= 0:
+                edges.append((u, v, w))
+            if u not in nodes:
+                nodes.append(u)
+            if v not in nodes:
+                nodes.append(v)
 
-        updates = []
-        while i < len(lines) and lines[i].strip() != "END":
-            if lines[i].strip():
-                u, v, w = lines[i].strip().split()
-                updates.append((u, v, int(w)))
-            i += 1
-        i += 1  # skip END
-
-        all_nodes = set(nodes)
-        t = run_dv(sorted(all_nodes), edges, t)
-
-        if updates:
-            updated_edges = list(edges)
-            for u, v, w in updates:
-                updated_edges = [e for e in updated_edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
-                if w >= 0:
-                    updated_edges.append((u, v, w))
-                all_nodes.update([u, v])
-
-            t = run_dv(sorted(all_nodes), updated_edges, 0)
+        t = run_dv(nodes, edges, t)
 
 if __name__ == "__main__":
     main()
