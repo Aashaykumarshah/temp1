@@ -31,7 +31,7 @@ def parse_input():
                 updates.append((u, v, int(w)))
 
     except EOFError:
-        return nodes, edges, updates, True  # signal EOF
+        return nodes, edges, updates, True
 
     return nodes, edges, updates, False
 
@@ -122,9 +122,9 @@ def main():
         for n in nodes:
             nodes_seen.add(n)
 
-        # Always rebuild edge list fresh from nodes + edges
-        edges = []
+        # Merge new edges (overwrite existing if same (u,v) or (v,u))
         for u, v, w in new_edges:
+            edges = [e for e in edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
             edges.append((u, v, w))
 
         t = run_dv(sorted(nodes_seen), edges, t)
