@@ -78,11 +78,10 @@ def print_routing_tables(nodes, dt):
         print("")
 
 def main():
-    t = 0
     lines = sys.stdin.read().splitlines()
     i = 0
     while i < len(lines):
-        # Parse nodes
+        t = 0
         nodes = []
         while i < len(lines) and lines[i].strip() != "START":
             if lines[i].strip():
@@ -90,7 +89,6 @@ def main():
             i += 1
         i += 1  # skip START
 
-        # Parse edges
         edges = []
         while i < len(lines) and lines[i].strip() != "UPDATE":
             if lines[i].strip():
@@ -99,7 +97,6 @@ def main():
             i += 1
         i += 1  # skip UPDATE
 
-        # Parse updates
         updates = []
         while i < len(lines) and lines[i].strip() != "END":
             if lines[i].strip():
@@ -108,20 +105,18 @@ def main():
             i += 1
         i += 1  # skip END
 
-        # Run initial DV
-        t = run_dv(sorted(nodes), edges, t)
+        all_nodes = set(nodes)
+        t = run_dv(sorted(all_nodes), edges, t)
 
-        # Apply updates
         if updates:
+            updated_edges = list(edges)
             for u, v, w in updates:
-                edges = [e for e in edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
+                updated_edges = [e for e in updated_edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
                 if w >= 0:
-                    edges.append((u, v, w))
-                if u not in nodes:
-                    nodes.append(u)
-                if v not in nodes:
-                    nodes.append(v)
-            t = run_dv(sorted(nodes), edges, t)
+                    updated_edges.append((u, v, w))
+                all_nodes.update([u, v])
+
+            t = run_dv(sorted(all_nodes), updated_edges, 0)
 
 if __name__ == "__main__":
     main()
