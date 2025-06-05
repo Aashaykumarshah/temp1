@@ -22,7 +22,11 @@ def parse_input():
         if tok == "UPDATE":
             break
         u, v, w = tok.split()
-        edges.append((u, v, int(w)))
+        w = int(w)
+        if w < 0:
+            print(f"Ignoring invalid initial link with negative weight: {u} {v} {w}")
+            continue
+        edges.append((u, v, w))
 
     updates = []
     for line in sys.stdin:
@@ -36,14 +40,13 @@ def parse_input():
 
     return nodes, edges, updates
 
+
 def run_dv(nodes, edges, start_time):
-    # Build fresh adjacency map
     graph = {n: {} for n in nodes}
     for u, v, w in edges:
         graph[u][v] = w
         graph[v][u] = w
 
-    # Initialize distance table
     dt = {}
     for x in nodes:
         dt[x] = {}
@@ -52,34 +55,42 @@ def run_dv(nodes, edges, start_time):
                 continue
             dt[x][dest] = {via: INF for via in nodes if via != x}
         for nbr, w in graph[x].items():
-            if nbr != x:
-                if nbr not in dt[x]:
-                    dt[x][nbr] = {via: INF for via in nodes if via != x}
-                dt[x][nbr][nbr] = w
+            if nbr not in dt[x]:
+                dt[x][nbr] = {via: INF for via in nodes if via != x}
+            dt[x][nbr][nbr] = w
 
     t = start_time
     print_distance_tables(nodes, dt, t)
     t += 1
 
-    # Synchronous rounds until convergence
     while True:
-        adv = {}
+        # Flat adv map with poison reverse
+        adv = {src: {nbr: {} for nbr in graph[src]} for src in nodes}
         for src in nodes:
-            adv[src] = {}
             for dest in nodes:
                 if dest == src:
-                    adv[src][dest] = 0
-                else:
-                    adv[src][dest] = min(dt[src][dest].values())
+                    continue
+                best_via, best_cost = min(dt[src][dest].items(), key=lambda kv: kv[1])
+                for nbr in graph[src]:
+                    if best_via == nbr:
+                        adv[src][nbr][dest] = INF
+                    else:
+                        adv[src][nbr][dest] = best_cost
 
         updated = False
         for x in nodes:
-            for src, cost_x_src in graph[x].items():
+            for nbr, cost_x_nbr in graph[x].items():
                 for dest in dt[x]:
-                    nc = cost_x_src + adv[src][dest]
-                    if nc < dt[x][dest][src]:
-                        dt[x][dest][src] = nc
+                    if dest == x:
+                        continue
+                    adv_cost = adv[nbr][x].get(dest, INF)
+                    if adv_cost == INF:
+                        continue
+                    nc = cost_x_nbr + adv_cost
+                    if nc < dt[x][dest][nbr]:
+                        dt[x][dest][nbr] = nc
                         updated = True
+
 
         if not updated:
             break
@@ -89,6 +100,7 @@ def run_dv(nodes, edges, start_time):
 
     print_routing_tables(nodes, dt)
     return t
+
 
 def print_distance_tables(nodes, dt, t):
     for x in sorted(nodes):
@@ -128,15 +140,18 @@ def main():
     if updates:
         # Apply updates to edges
         for u, v, w in updates:
+            if w < 0:
+                 print(f"Ignoring invalid negative weight: {u} {v} {w}")
+                 continue
             # Remove old u-v links
             edges = [e for e in edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
-            if w >= 0:
-                edges.append((u, v, w))
+            edges.append((u, v, w))
 
         # Refresh node list from updated edge list
         nodes = sorted(set(n for e in edges for n in e[:2]))
 
         # Run updated topology
+        t = 0
         t = run_dv(nodes, edges, t)
 
 if __name__ == "__main__":
