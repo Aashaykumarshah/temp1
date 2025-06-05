@@ -4,42 +4,11 @@ import math
 
 INF = math.inf
 
-def parse_input():
-    nodes, edges, updates = [], [], []
-    try:
-        while True:
-            line = input().strip()
-            if line == "START":
-                break
-            if line:
-                nodes.append(line)
-
-        while True:
-            line = input().strip()
-            if line == "UPDATE":
-                break
-            if line:
-                u, v, w = line.split()
-                edges.append((u, v, int(w)))
-
-        while True:
-            line = input().strip()
-            if line == "END":
-                break
-            if line:
-                u, v, w = line.split()
-                updates.append((u, v, int(w)))
-
-    except EOFError:
-        return nodes, edges, updates, True
-
-    return nodes, edges, updates, False
-
 def run_dv(nodes, edges, start_time):
     graph = {n: {} for n in nodes}
     for u, v, w in edges:
-        graph.setdefault(u, {})[v] = w
-        graph.setdefault(v, {})[u] = w
+        graph[u][v] = w
+        graph[v][u] = w
 
     dt = {}
     for x in nodes:
@@ -110,36 +79,49 @@ def print_routing_tables(nodes, dt):
 
 def main():
     t = 0
-    nodes_seen = set()
-    edges = []
+    lines = sys.stdin.read().splitlines()
+    i = 0
+    while i < len(lines):
+        # Parse nodes
+        nodes = []
+        while i < len(lines) and lines[i].strip() != "START":
+            if lines[i].strip():
+                nodes.append(lines[i].strip())
+            i += 1
+        i += 1  # skip START
 
-    while True:
-        nodes, new_edges, updates, eof = parse_input()
+        # Parse edges
+        edges = []
+        while i < len(lines) and lines[i].strip() != "UPDATE":
+            if lines[i].strip():
+                u, v, w = lines[i].strip().split()
+                edges.append((u, v, int(w)))
+            i += 1
+        i += 1  # skip UPDATE
 
-        if not nodes and eof:
-            break
+        # Parse updates
+        updates = []
+        while i < len(lines) and lines[i].strip() != "END":
+            if lines[i].strip():
+                u, v, w = lines[i].strip().split()
+                updates.append((u, v, int(w)))
+            i += 1
+        i += 1  # skip END
 
-        for n in nodes:
-            nodes_seen.add(n)
+        # Run initial DV
+        t = run_dv(sorted(nodes), edges, t)
 
-        # Merge new edges (overwrite existing if same (u,v) or (v,u))
-        for u, v, w in new_edges:
-            edges = [e for e in edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
-            edges.append((u, v, w))
-
-        t = run_dv(sorted(nodes_seen), edges, t)
-
+        # Apply updates
         if updates:
             for u, v, w in updates:
                 edges = [e for e in edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
                 if w >= 0:
                     edges.append((u, v, w))
-                nodes_seen.update([u, v])
-
-            t = run_dv(sorted(nodes_seen), edges, t)
-
-        if eof:
-            break
+                if u not in nodes:
+                    nodes.append(u)
+                if v not in nodes:
+                    nodes.append(v)
+            t = run_dv(sorted(nodes), edges, t)
 
 if __name__ == "__main__":
     main()
