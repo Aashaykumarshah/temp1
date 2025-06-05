@@ -79,20 +79,21 @@ def run_dv(nodes, edges, start_time):
 
 def print_distance_tables(nodes, dt, t):
     for x in sorted(nodes):
-        print(f"Distance Table of router {x} at t={t}:")
+        print(f"Distance table for router {x} at t={t}")
         others = [n for n in sorted(nodes) if n != x]
-        print("   " + " ".join(others))
+        header = "      " + " ".join(f"{via:>5}" for via in others)
+        print(header)
         for dest in others:
-            row = [dest]
+            row = f"{dest:>5}"
             for via in others:
-                c = dt[x][dest][via]
-                row.append(str(int(c)) if c != INF else "INF")
-            print("   " + " ".join(row))
+                cost = dt[x][dest][via]
+                row += f" {int(cost):>5}" if cost != INF else "  INF"
+            print(row)
         print()
 
 def print_routing_tables(nodes, dt):
     for x in sorted(nodes):
-        print(f"Routing Table of router {x}:")
+        print(f"Routing table for router {x}")
         for dest in sorted(nodes):
             if dest == x:
                 continue
@@ -117,7 +118,6 @@ def main():
         if not nodes:
             break
 
-        # merge nodes and edges
         for n in nodes:
             if n not in nodes_seen:
                 nodes_seen.add(n)
