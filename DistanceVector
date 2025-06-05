@@ -97,12 +97,18 @@ def print_routing_tables(nodes, dt):
         for dest in sorted(nodes):
             if dest == x:
                 continue
-            via, cost = min(dt[x][dest].items(), key=lambda kv: kv[1])
-            if cost == INF:
+            best_cost = INF
+            best_via = None
+            for via in sorted(dt[x][dest].keys()):
+                cost = dt[x][dest][via]
+                if cost < best_cost:
+                    best_cost = cost
+                    best_via = via
+            if best_cost == INF:
                 print(f"{dest},INF,INF")
             else:
-                print(f"{dest},{via},{int(cost)}")
-        print()
+                print(f"{dest},{best_via},{int(best_cost)}")
+        print("")  # precise single blank line after each routing table
 
 def main():
     t = 0
