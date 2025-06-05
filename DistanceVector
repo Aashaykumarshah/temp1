@@ -8,7 +8,8 @@ def parse_input():
     nodes = []
     for line in sys.stdin:
         tok = line.strip()
-        if not tok: continue
+        if not tok:
+            continue
         if tok == "START":
             break
         nodes.append(tok)
@@ -16,7 +17,8 @@ def parse_input():
     edges = []
     for line in sys.stdin:
         tok = line.strip()
-        if not tok: continue
+        if not tok:
+            continue
         if tok == "UPDATE":
             break
         u, v, w = tok.split()
@@ -25,7 +27,8 @@ def parse_input():
     updates = []
     for line in sys.stdin:
         tok = line.strip()
-        if not tok: continue
+        if not tok:
+            continue
         if tok == "END":
             break
         u, v, w = tok.split()
@@ -34,27 +37,31 @@ def parse_input():
     return nodes, edges, updates
 
 def run_dv(nodes, edges, start_time):
+    # Build fresh adjacency map
     graph = {n: {} for n in nodes}
     for u, v, w in edges:
-        graph.setdefault(u, {})[v] = w
-        graph.setdefault(v, {})[u] = w
+        graph[u][v] = w
+        graph[v][u] = w
 
+    # Initialize distance table
     dt = {}
     for x in nodes:
         dt[x] = {}
         for dest in nodes:
-            if dest == x: continue
-            dt[x][dest] = { via: INF for via in nodes if via != x }
+            if dest == x:
+                continue
+            dt[x][dest] = {via: INF for via in nodes if via != x}
         for nbr, w in graph[x].items():
             if nbr != x:
-               if nbr not in dt[x]:
-                   dt[x][nbr] = { via: INF for via in nodes if via != x }
-               dt[x][nbr][nbr] = w # Set direct link cost
+                if nbr not in dt[x]:
+                    dt[x][nbr] = {via: INF for via in nodes if via != x}
+                dt[x][nbr][nbr] = w
 
     t = start_time
     print_distance_tables(nodes, dt, t)
     t += 1
 
+    # Synchronous rounds until convergence
     while True:
         adv = {}
         for src in nodes:
@@ -111,19 +118,25 @@ def print_routing_tables(nodes, dt):
 
 def main():
     nodes, edges, updates = parse_input()
+
+    # Ensure unique sorted node list from all edge info
+    nodes = sorted(set(nodes + [n for e in edges for n in e[:2]]))
+
     t = 0
     t = run_dv(nodes, edges, t)
 
     if updates:
+        # Apply updates to edges
         for u, v, w in updates:
-            edges = [e for e in edges if not ((e[0]==u and e[1]==v) or (e[0]==v and e[1]==u))]
+            # Remove old u-v links
+            edges = [e for e in edges if not ((e[0] == u and e[1] == v) or (e[0] == v and e[1] == u))]
             if w >= 0:
                 edges.append((u, v, w))
-            if u not in nodes:
-                nodes.append(u)
-            if v not in nodes:
-                nodes.append(v)
 
+        # Refresh node list from updated edge list
+        nodes = sorted(set(n for e in edges for n in e[:2]))
+
+        # Run updated topology
         t = run_dv(nodes, edges, t)
 
 if __name__ == "__main__":
