@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import sys
 import math
@@ -34,8 +33,7 @@ def parse_input():
 
     return nodes, edges, updates
 
-def run_dv(nodes, edges, start_time, max_steps=None):
-
+def run_dv(nodes, edges, start_time):
     graph = {n: {} for n in nodes}
     for u, v, w in edges:
         graph.setdefault(u, {})[v] = w
@@ -70,19 +68,15 @@ def run_dv(nodes, edges, start_time, max_steps=None):
             for src, cost_x_src in graph[x].items():
                 for dest in dt[x]:
                     nc = cost_x_src + adv[src][dest]
-                    old_cost = dt[x][dest][src]
-                    if nc < old_cost:
+                    if nc < dt[x][dest][src]:
                         dt[x][dest][src] = nc
                         updated = True
-
 
         if not updated:
             break
 
         print_distance_tables(nodes, dt, t)
         t += 1
-        if max_steps is not None and t >= max_steps:
-            break
 
     print_routing_tables(nodes, dt)
     return t
@@ -100,7 +94,6 @@ def print_distance_tables(nodes, dt, t):
             print("   " + " ".join(row))
         print()
 
-
 def print_routing_tables(nodes, dt):
     for x in sorted(nodes):
         print(f"Routing Table of router {x}:")
@@ -113,11 +106,11 @@ def print_routing_tables(nodes, dt):
             else:
                 print(f"{dest},{via},{int(cost)}")
         print()
+
 def main():
     nodes, edges, updates = parse_input()
     t = 0
     t = run_dv(nodes, edges, t)
-
 
     if updates:
         for u, v, w in updates:
@@ -129,8 +122,7 @@ def main():
             if v not in nodes:
                 nodes.append(v)
 
-        run_dv(nodes, edges, t, max_steps=t+1)
-
+        run_dv(nodes, edges, t)
 
 if __name__ == "__main__":
     main()
