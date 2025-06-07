@@ -91,15 +91,15 @@ def print_distance_tables(nodes, dt, t):
     for x in sorted(nodes):
         print(f"Distance Table of router {x} at t={t}:")
         others = [n for n in sorted(nodes) if n != x]
-        header = "     " + "".join(via.ljust(5) for via in others)
-        print(header)
+        print("   " + " ".join(others))
         for dest in others:
-            row = dest.ljust(5)
+            row = [dest]
             for via in others:
                 c = dt[x][dest][via]
-                row += (str(int(c)) if c != INF else "INF").ljust(5)
-            print(row)
+                row.append(str(int(c)) if c != INF else "INF")
+            print("   " + " ".join(row))
         print()
+
 
 def print_routing_tables(nodes, dt):
     for x in sorted(nodes):
