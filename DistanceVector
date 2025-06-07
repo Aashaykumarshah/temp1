@@ -113,7 +113,6 @@ def print_routing_tables(nodes, dt):
             else:
                 print(f"{dest},{via},{int(cost)}")
         print()
-
 def main():
     nodes, edges, updates = parse_input()
     t = 0
