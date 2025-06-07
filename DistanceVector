@@ -61,7 +61,12 @@ def run_dv(nodes, edges, start_time):
                 if dest == src:
                     adv[src][dest] = 0
                 else:
-                    adv[src][dest] = min(dt[src][dest].values())
+                    min_cost, best_via = INF, None
+                    for via in sorted(dt[src][dest].keys()):
+                        cost = dt[src][dest][via]
+                        if cost < min_cost:
+                            min_cost, best_via = cost, via
+                    adv[src][dest] = min_cost
 
         updated = False
         for x in nodes:
