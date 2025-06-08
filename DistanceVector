@@ -260,7 +260,8 @@ def floyd_warshall_update(nodes, graph, t):
                         dt[x][dest][via] = INF
                         dt_original[x][dest][via] = INF
     print_distance_tables(nodes, dt, t)
-    print_routing_tables(nodes, dt_original)
+    # Do not print routing tables here
+    return dt, dt_original
 
 def main():
     nodes, edges, updates = parse_input()
@@ -325,7 +326,43 @@ def main():
                     dt[v][u][u] = INF
 
         # Perform Floyd-Warshall update after the update, for instant convergence
-        floyd_warshall_update(nodes, graph, t)
+        dt, dt_original = floyd_warshall_update(nodes, graph, t)
+        # Now continue with DV propagation from t+1
+        t += 1
+        while True:
+            dv = {}
+            for n in nodes:
+                dv[n] = {}
+                for dest in nodes:
+                    if dest == n:
+                        dv[n][dest] = 0
+                    elif dest in dt[n]:
+                        min_cost = INF
+                        min_via = None
+                        for via in sorted(dt[n][dest].keys()):
+                            cost = dt[n][dest][via]
+                            if cost < min_cost or (min_via is None or via < min_via):
+                                min_cost = cost
+                                min_via = via
+                        dv[n][dest] = min_cost
+            updated = False
+            for x in nodes:
+                for dest in dt[x]:
+                    for via in dt[x][dest]:
+                        if via in graph[x]:
+                            cost_to_via = graph[x][via]
+                            cost_via_to_dest = dv[via][dest]
+                            new_cost = cost_to_via + cost_via_to_dest
+                        else:
+                            new_cost = INF
+                        if dt[x][dest][via] != new_cost:
+                            dt[x][dest][via] = new_cost
+                            updated = True
+            if not updated:
+                break
+            print_distance_tables(nodes, dt, t)
+            t += 1
+        print_routing_tables(nodes, dt)
 
 if __name__ == "__main__":
     main()
